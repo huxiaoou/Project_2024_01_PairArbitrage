@@ -79,6 +79,9 @@ if __name__ == "__main__":
         mtm_simus(input_ret_df, ws=[1, 3, 5, 10, 20, 60], delay=1)
     elif args.switch == "auto":
         from quick_tools import quick_simu
+        from husfort.qplot import CPlotLines
+
+        cost_rate = 2e-4
         input_nav_df["diff_L1"] = input_nav_df["diff"].shift(1)
         input_nav_df["diff_L2"] = input_nav_df["diff"].shift(2)
         input_nav_df["diff_L3"] = input_nav_df["diff"].shift(3)
@@ -88,9 +91,16 @@ if __name__ == "__main__":
             axis=0, how="any")
         acr = auto_df.corr()
         print(acr)
+
         input_nav_df["dir"] = np.sign(input_nav_df["diff"])
         input_nav_df["signal"] = input_nav_df["dir"].shift(1).fillna(0)
         quick_simu(df=input_nav_df, cost_rate=cost_rate)
+        artist = CPlotLines(
+            plot_df=input_nav_df[["diffCum", "retCum", "netCum"]],
+            fig_name="ar01", line_color=["#483D8B", "#FF69B4", "#DC143C"],
+            line_style=["-.", "--", "-"], line_width=1.0,
+        )
+        artist.plot()
 
     elif args.switch == "ewm":
         from husfort.qplot import CPlotLines
