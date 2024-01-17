@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+from husfort.qevaluation import CNAV
 
 
 class CDataReader(object):
@@ -88,8 +89,19 @@ def mtm_simus(input_ret_df: pd.DataFrame, ws: list[int], delay: int):
 def quick_simu(df: pd.DataFrame, cost_rate: float):
     df["ret"] = df["signal"] * df["diff"]
     df["retCum"] = df["ret"].cumsum()
-    df["cost"] = [1 * cost_rate if d0 != d1 else 0 for (d0, d1) in
-                  zip(df["signal"], df["signal"].shift(1))]
+    df["dltWeight"] = df["signal"] - df["signal"].shift(1).fillna(0)
+    df["cost"] = df["dltWeight"].abs() * cost_rate
     df["netRet"] = df["ret"] - df["cost"]
     df["netCum"] = df["netRet"].cumsum()
+    return 0
+
+
+def quick_report(df: pd.DataFrame, ret_ids: list[str]):
+    res = {}
+    for ret_id in ret_ids:
+        raw_nav = CNAV(df[ret_id], input_type="RET")
+        raw_nav.cal_all_indicators()
+        res[ret_id] = raw_nav.to_dict(save_type="eng")
+    report_df = pd.DataFrame.from_dict(res, orient="index")
+    print(report_df)
     return 0
