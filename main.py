@@ -1,11 +1,15 @@
 if __name__ == "__main__":
     import argparse
+    import os
     import numpy as np
     import pandas as pd
+    from husfort.qutility import make_twin_dir
     from quick_tools import CDataReader
 
     return_file_dir = r"E:\Deploy\Data\ForProjects\cta3\instruments_return"
     return_file_name = "instruments_return.csv.gz"
+    save_root_dir = r"E:\ProjectsData"
+    project_save_dir = make_twin_dir(save_root_dir, src=".")
 
     args_parser = argparse.ArgumentParser(description="Entry point of this project")
     args_parser.add_argument("--switch", type=str,
@@ -13,11 +17,12 @@ if __name__ == "__main__":
                              help="switch to functions")
     args_parser.add_argument("--bgn", type=str, help="format = [YYYYMMDD]")
     args_parser.add_argument("--end", type=str, help="format = [YYYYMMDD]")
+    args_parser.add_argument("--delay", type=int, default=1, help="delay return in the future")
     args_parser.add_argument("-v", "--verbose", help="print details", action="store_true")
     args = args_parser.parse_args()
 
     bgn_date, end_date = args.bgn, args.end
-    verbose = args.verbose
+    delay, verbose = args.delay, args.verbose
 
     data_reader = CDataReader(return_file_name, return_file_dir)
     df_ret = data_reader.get_range(bgn_date, end_date, normalize=False)
@@ -49,38 +54,35 @@ if __name__ == "__main__":
 
     input_ret_df = pd.DataFrame({'a': ga_ret.mean(axis=1), 'b': gb_ret.mean(axis=1)})
     input_nav_df = (input_ret_df + 1).cumprod()
-    input_nav_df["diff"] = input_ret_df['a'] - input_ret_df['b']
+    input_nav_df["diff"] = (input_ret_df['a'] - input_ret_df['b']) * 0.5
     input_nav_df["diffCum"] = input_nav_df["diff"].cumsum()
-    input_nav_df.to_csv("nav_diff.csv", float_format="%.8f")
+    input_nav_df.to_csv(os.path.join(project_save_dir, "nav_diff.csv"), float_format="%.8f")
 
     if args.switch == "plot":
         from husfort.qplot import CPlotLines, CPlotBars, CPlotLinesTwinxBar, CPlotScatter
 
         print(input_ret_df.corr())
-
-        artist = CPlotBars(plot_df=input_ret_df,
+        artist = CPlotBars(plot_df=input_ret_df, fig_save_dir=project_save_dir,
                            fig_name="pair_arbitrage_ret", fig_save_type="PNG")
         artist.plot()
-
-        artist = CPlotLines(plot_df=input_nav_df["diffCum"],
+        artist = CPlotLines(plot_df=input_nav_df["diffCum"], fig_save_dir=project_save_dir,
                             fig_name="pair_arbitrage_diff_cumsum", fig_save_type="PNG")
         artist.plot()
-
         artist = CPlotLinesTwinxBar(plot_df=input_nav_df, primary_cols=['a', 'b'], secondary_cols=['diff'],
-                                    bar_color=["r"], fig_name="pair_arbitrage_nav", fig_save_type="PNG")
+                                    bar_color=["r"], fig_name="pair_arbitrage_nav", fig_save_type="PNG",
+                                    fig_save_dir=project_save_dir)
         artist.plot()
-
-        artist = CPlotScatter(plot_df=input_ret_df, point_x="a", point_y="b",
+        artist = CPlotScatter(plot_df=input_ret_df, point_x="a", point_y="b", fig_save_dir=project_save_dir,
                               fig_name="pair_arbitrage_scatter", fig_save_type="PNG")
         artist.plot()
     elif args.switch == "mtm":
         from quick_tools import mtm_diffs
 
-        mtm_diffs(input_ret_df, ws=[1, 3, 5, 10, 20, 60], delay=1)
+        mtm_diffs(input_ret_df, ws=[1, 3, 5, 10, 20, 60], delay=delay)
     elif args.switch == "simu":
         from quick_tools import mtm_simus
 
-        mtm_simus(input_ret_df, ws=[1, 3, 5, 10, 20, 60], delay=1)
+        mtm_simus(input_ret_df, ws=[1, 3, 5, 10, 20, 60], delay=delay)
     elif args.switch == "auto":
         from quick_tools import quick_simu
         from husfort.qplot import CPlotLines
@@ -97,13 +99,13 @@ if __name__ == "__main__":
         print(acr)
 
         input_nav_df["dir"] = np.sign(input_nav_df["diff"])
-        input_nav_df["signal"] = input_nav_df["dir"].shift(1).fillna(0)
+        input_nav_df["signal"] = input_nav_df["dir"].shift(delay).fillna(0)
         quick_simu(df=input_nav_df, cost_rate=cost_rate)
         artist = CPlotLines(
             plot_df=input_nav_df[["diffCum", "retCum", "netCum"]],
-            fig_name="ar01", line_color=["#483D8B", "#FF69B4", "#DC143C"],
+            fig_name=f"auto_D{delay}", line_color=["#483D8B", "#FF69B4", "#DC143C"],
             line_style=["-.", "--", "-"], line_width=1.0,
-            fig_save_type="PNG"
+            fig_save_type="PNG", fig_save_dir=project_save_dir,
         )
         artist.plot()
     elif args.switch == "ewm":
@@ -118,15 +120,15 @@ if __name__ == "__main__":
             lambda z: 1 if z["MAFast"] >= z["MASlow"] else -1,
             axis=1
         )
-        input_nav_df["signal"] = input_nav_df["dir"].shift(1).fillna(0)
+        input_nav_df["signal"] = input_nav_df["dir"].shift(delay).fillna(0)
         quick_simu(df=input_nav_df, cost_rate=cost_rate)
         quick_report(input_nav_df, ret_ids=["ret", "netRet"])
 
         artist = CPlotLines(
             plot_df=input_nav_df[["diffCum", "retCum", "netCum"]],
-            fig_name="ewm", line_color=["#483D8B", "#FF69B4", "#DC143C"],
+            fig_name=f"ewm_D{delay}", line_color=["#483D8B", "#FF69B4", "#DC143C"],
             line_style=["-.", "--", "-"], line_width=1.0,
-            fig_save_type="PNG"
+            fig_save_type="PNG", fig_save_dir=project_save_dir
         )
         artist.plot(ylim=(-0.2, 0.7))
     elif args.switch == "ewm-vol":
@@ -153,15 +155,15 @@ if __name__ == "__main__":
             lambda z: __get_direction_ewm_vol(z["MAFast"], z["MASlow"], z["volatility"]),
             axis=1
         )
-        input_nav_df["signal"] = input_nav_df["dir"].shift(1).fillna(0)
+        input_nav_df["signal"] = input_nav_df["dir"].shift(delay).fillna(0)
         quick_simu(df=input_nav_df, cost_rate=cost_rate)
         quick_report(input_nav_df, ret_ids=["ret", "netRet"])
 
         artist = CPlotLines(
             plot_df=input_nav_df[["diffCum", "retCum", "netCum"]],
-            fig_name="ewm-vol", line_color=["#483D8B", "#FF69B4", "#DC143C"],
+            fig_name=f"ewm-vol_D{delay}", line_color=["#483D8B", "#FF69B4", "#DC143C"],
             line_style=["-.", "--", "-"], line_width=1.0,
-            fig_save_type="PNG"
+            fig_save_type="PNG", fig_save_dir=project_save_dir
         )
         artist.plot(ylim=(-0.2, 0.7))
     elif args.switch == "ewm-tnr":
@@ -177,7 +179,7 @@ if __name__ == "__main__":
 
 
         fast, slow = 0.9, 0.6
-        rolling_win = 20
+        rolling_win = 5
         cost_rate = 1e-4
         threshold = 0.05
 
@@ -191,15 +193,15 @@ if __name__ == "__main__":
             lambda z: __get_direction_ewm_tnr(z["MAFast"], z["MASlow"], z["tnr"]),
             axis=1
         )
-        input_nav_df["signal"] = input_nav_df["dir"].shift(1).fillna(0)
+        input_nav_df["signal"] = input_nav_df["dir"].shift(delay).fillna(0)
         quick_simu(df=input_nav_df, cost_rate=cost_rate)
         quick_report(input_nav_df, ret_ids=["ret", "netRet"])
 
         artist = CPlotLines(
             plot_df=input_nav_df[["diffCum", "retCum", "netCum"]],
-            fig_name="ewm-tnr", line_color=["#483D8B", "#FF69B4", "#DC143C"],
+            fig_name=f"ewm-tnr_D{delay}", line_color=["#483D8B", "#FF69B4", "#DC143C"],
             line_style=["-.", "--", "-"], line_width=1.0,
-            fig_save_type="PNG"
+            fig_save_type="PNG", fig_save_dir=project_save_dir
         )
         artist.plot(ylim=(-0.2, 0.7))
 

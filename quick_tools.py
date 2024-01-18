@@ -26,7 +26,7 @@ def __mtm_diff(input_ret_df: pd.DataFrame, w: int, delay: int):
     test_df = pd.merge(
         left=input_ret_df, right=mtm_df,
         left_index=True, right_index=True,
-        suffixes=("_e", "_r")
+        suffixes=("_r", "_e")
     ).dropna(axis=0, how="any")
     rank_ic = test_df.apply(
         lambda z: pd.DataFrame({'e': [z['a_e'], z['b_e']], 'r': [z['a_r'], z['b_r']]}).corr(
@@ -59,7 +59,7 @@ def __mtm_simu(input_ret_df: pd.DataFrame, w: int, delay: int):
     test_df = pd.merge(
         left=input_ret_df, right=mtm_df,
         left_index=True, right_index=True,
-        suffixes=("_e", "_r")
+        suffixes=("_r", "_e")
     ).dropna(axis=0, how="any")
     simu_ret = test_df.apply(
         lambda z: np.sign(z["a_e"] - z["b_e"]) * (z["a_r"] - z["b_r"]),
