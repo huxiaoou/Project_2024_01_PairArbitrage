@@ -31,18 +31,21 @@ if __name__ == "__main__":
 
     groups = [
         ("A.DCE", "Y.DCE"),
+        ("OI.CZC", "P.DCE"),
+        ("M.DCE", "RM.CZC"),
+
         ("AG.SHF", "AU.SHF"),
         ("AL.SHF", "ZN.SHF"),
-        ("BU.SHF", "TA.CZC"),
-        ("C.DCE", "CS.DCE"),
         ("CU.SHF", "ZN.SHF"),
+
         ("HC.SHF", "RB.SHF"),
         ("I.DCE", "RB.SHF"),
         ("JM.DCE", "J.DCE"),
+
+        ("BU.SHF", "TA.CZC"),
         ("L.DCE", "PP.DCE"),
-        ("M.DCE", "RM.CZC"),
+        ("C.DCE", "CS.DCE"),
         ("MA.CZC", "V.DCE"),
-        ("OI.CZC", "P.DCE"),
     ]
     ga, gb = zip(*groups)
     ga, gb = list(ga), list(gb)
@@ -146,7 +149,7 @@ if __name__ == "__main__":
         fast, slow = 0.9, 0.6
         rolling_win = 20
         cost_rate = 1e-4
-        threshold = 0.04
+        threshold = 0.015
 
         input_nav_df["MAFast"] = input_nav_df["diff"].ewm(alpha=fast, adjust=False).mean()
         input_nav_df["MASlow"] = input_nav_df["diff"].ewm(alpha=slow, adjust=False).mean()
